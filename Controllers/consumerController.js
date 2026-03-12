@@ -3,9 +3,17 @@ import Consumer from "../models/Consumer.js";
 // CREATE CONSUMER
 export const  createConsumer = async (req, res) => {
     try {
+       
         const consumer = await Consumer.create(req.body);
         res.status(201).json(consumer);
     }catch (error) {
+
+        // Handle duplicate username
+        if (error.code === 11000) {
+            return res.status(400).json({
+                message: "consumerName has already been created"
+            });
+        }
         res.status(500).json({message:error.message});
     }
 };

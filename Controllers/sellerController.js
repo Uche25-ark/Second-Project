@@ -6,6 +6,13 @@ export const createSeller = async (req, res) => {
         const seller = await Seller.create(req.body)
         res.status(201).json(seller);
     }catch (error) {
+
+        // Handle duplicate username
+        if (error.code === 11000) {
+            return res.status(400).json({
+                message: "SellerName has already been created"
+            });
+        }
         res.status(500).json({message:error.message});
     }
 };
@@ -13,7 +20,7 @@ export const createSeller = async (req, res) => {
 //GET ALL SELLERS
 export const getSellers = async (req, res) => {
     try {
-        const sellers = await Seller.find().populate("loginId");
+        const sellers = await Seller.find();
         res.json(sellers);
     }catch (error) {
         res.status(500).json({message:error.message});
@@ -36,7 +43,7 @@ export const updateSeller = async (req, res)=> {
         const seller = await Seller.findByIdAndUpdate(
             req.params.id,
             req.body,
-            { new:true }
+            { returnDocument: 'after' }
         );
     if (!seller) {
       return res.status(404).json({ message: "Seller not found" });

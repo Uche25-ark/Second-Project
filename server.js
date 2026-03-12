@@ -18,10 +18,6 @@ const app = express();
 
 app.use(express.json());
 
-// app.get("/", (req, res)=> {
-//     res.send("Server Running");
-// });
-
 app.use("/login", loginRoutes)
 app.use("/consumers", consumerRoutes)
 app.use("/sellers", sellerRoutes)

@@ -10,7 +10,9 @@ export const checkout = async (req, res) => {
     if (!cart)
         return res.status(404).json({message: "Cart not Found"});
 
-    const items = cart.items.map(item => ({
+    const items = cart.items
+    .filter(item => item.productId)
+    .map(item => ({
         productId: item.productId._id,
         quantity: item.quantity,
         price: item.productId.price
