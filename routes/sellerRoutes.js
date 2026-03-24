@@ -1,19 +1,24 @@
-    import express from "express"
+import express from "express";
+import {
+    createSeller,
+    loginSeller,
+    getSellers,
+    getSeller,
+    updateSeller,
+    deleteSeller
+} from "../controllers/sellerController.js";
+import { protectSeller } from "../middleware/authMiddleware.js";
 
-    import {
-        createSeller,
-        getSellers,
-        getSeller,
-        updateSeller,
-        deleteSeller
-    } from "../Controllers/sellerController.js"
+const router = express.Router();
 
-    const router = express.Router()
+// Public routes
+router.post("/signup", createSeller);
+router.post("/login", loginSeller);
 
-    router.post("/", createSeller);
-    router.get("/", getSellers);
-    router.get("/:id", getSeller);
-    router.put("/:id", updateSeller);
-    router.delete("/:id", deleteSeller);
+// Protected routes
+router.get("/", protectSeller, getSellers);
+router.get("/:id", protectSeller, getSeller);
+router.put("/:id", protectSeller, updateSeller);
+router.delete("/:id", protectSeller, deleteSeller);
 
-    export default router;
+export default router;

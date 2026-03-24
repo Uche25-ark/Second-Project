@@ -1,18 +1,24 @@
-import express from "express"
+import express from "express";
 import {
     createConsumer,
+    loginConsumer,
     getConsumers,
     getConsumer,
     updateConsumer,
     deleteConsumer
-} from "../Controllers/consumerController.js"
+} from "../controllers/consumerController.js";
+import { protectConsumer } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/", createConsumer);
-router.get("/", getConsumers);
-router.get("/:id", getConsumer);
-router.put("/:id", updateConsumer);
-router.delete("/:id", deleteConsumer);
+// Public routes
+router.post("/signup", createConsumer);
+router.post("/login", loginConsumer);
+
+// Protected routes
+router.get("/", protectConsumer, getConsumers);
+router.get("/:id", protectConsumer, getConsumer);
+router.put("/:id", protectConsumer, updateConsumer);
+router.delete("/:id", protectConsumer, deleteConsumer);
 
 export default router;

@@ -5,14 +5,15 @@ import {
     getOrder,
     updateOrder,
     deleteOrder
-} from "../Controllers/orderController.js"
+} from "../controllers/orderController.js";
+import { protectConsumer } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/checkout/:consumerId", checkout);
-router.get("/", getOrders);
-router.get("/:id", getOrder);
-router.patch("/:id", updateOrder);
-router.delete("/:id", deleteOrder);
+router.post("/checkout/:consumerId", protectConsumer, checkout);
+router.get("/", protectConsumer, getOrders);
+router.get("/:id", protectConsumer, getOrder);
+router.patch("/:id", protectConsumer, updateOrder);
+router.delete("/:id", protectConsumer, deleteOrder);
 
 export default router;

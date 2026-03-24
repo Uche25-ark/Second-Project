@@ -5,15 +5,18 @@ import {
     getProduct,
     updateProduct,
     deleteProduct
-}from "../Controllers/productController.js";
+} from "../controllers/productController.js";
+import { protectSeller } from "../middleware/authMiddleware.js";
 
+const router = express.Router();
 
-const router = express.Router()
+// Public route
+router.get("/", getProducts);
+router.get("/:id", getProduct);
 
-router.post("/", createProduct);
-router.get("/", getProducts)
-router.get("/:id", getProduct)
-router.put("/:id", updateProduct)
-router.delete("/:id", deleteProduct)
+// Protected routes for sellers
+router.post("/", protectSeller, createProduct);
+router.put("/:id", protectSeller, updateProduct);
+router.delete("/:id", protectSeller, deleteProduct);
 
 export default router;
