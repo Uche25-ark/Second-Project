@@ -6,7 +6,7 @@ import {
     getSeller,
     updateSeller,
     deleteSeller
-} from "../controllers/sellerController.js";
+} from "../Controllers/sellerController.js";
 import { protectSeller } from "../middleware/authMiddleware.js";
 
 const router = express.Router();

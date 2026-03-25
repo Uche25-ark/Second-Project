@@ -6,7 +6,7 @@ import {
     getConsumer,
     updateConsumer,
     deleteConsumer
-} from "../controllers/consumerController.js";
+} from "../Controllers/consumerController.js";
 import { protectConsumer } from "../middleware/authMiddleware.js";
 
 const router = express.Router();

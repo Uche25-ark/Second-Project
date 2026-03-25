@@ -4,10 +4,10 @@ import Product from "../models/Product.js";
 // CREATE PRODUCT
 export const createProduct = async (req, res) => {
     try {
-        const { name, price, description, stock, sellerId } = req.body;
+        const { name, price, description, stock, sellerId, picture } = req.body;
 
         // Manual validation
-        if (!name || !price || !description || stock == null || !sellerId) {
+        if (!name || !price || !description || stock == null || !sellerId  || !picture) {
             return res.status(400).json({
                 message: "All fields are required"
             });
