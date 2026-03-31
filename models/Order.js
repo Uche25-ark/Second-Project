@@ -32,21 +32,16 @@ const orderSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Pre-save hook to reduce product stock
+// Pre-save hook to reduce stock
 orderSchema.pre("save", async function(next) {
   try {
-    for (const item of this.items) {
+    await Promise.all(this.items.map(async (item) => {
       const product = await Product.findById(item.productId);
-      if (!product) {
-        throw new Error(`Product not found: ${item.productId}`);
-      }
-      if (product.stock < item.quantity) {
-        throw new Error(`Not enough stock for ${product.name}`);
-      }
+      if (!product) throw new Error(`Product not found: ${item.productId}`);
+      if (product.stock < item.quantity) throw new Error(`Not enough stock for ${product.name}`);
       product.stock -= item.quantity;
       await product.save();
-    }
-    
+    }));
   } catch (error) {
     next(error);
   }

@@ -1,6 +1,7 @@
 import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
 import mongoose from "mongoose";
+import { sendResponse } from "../utils/apiResponse.js"; // Standard response helper
 
 // GET - VIEW CART
 export const getCart = async (req, res) => {
@@ -8,11 +9,28 @@ export const getCart = async (req, res) => {
     const cart = await Cart.findOne({ consumerId: req.consumer._id })
       .populate("items.productId", "name price stock");
 
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    if (!cart) {
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Cart not found",
+        data: null,
+      });
+    }
 
-    res.json(cart);
+    return sendResponse(res, {
+      status: true,
+      validation: true,
+      message: "Cart retrieved successfully",
+      data: cart,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendResponse(res, {
+      status: false,
+      validation: false,
+      message: "Failed to retrieve cart",
+      errors: error.message,
+    });
   }
 };
 
@@ -21,20 +39,41 @@ export const addToCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
 
-    // ✅ Validation
     if (!productId || quantity === undefined || quantity < 1) {
-      return res.status(400).json({ message: "ProductId and valid quantity are required" });
+      return sendResponse(res, {
+        status: false,
+        validation: true,
+        message: "ProductId and valid quantity are required",
+        data: null,
+      });
     }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return res.status(400).json({ message: "Invalid product ID" });
+      return sendResponse(res, {
+        status: false,
+        validation: true,
+        message: "Invalid product ID",
+        data: null,
+      });
     }
 
     const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!product) {
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Product not found",
+        data: null,
+      });
+    }
 
     if (quantity > product.stock) {
-      return res.status(400).json({ message: `Only ${product.stock} items available in stock` });
+      return sendResponse(res, {
+        status: false,
+        validation: true,
+        message: `Only ${product.stock} items available in stock`,
+        data: null,
+      });
     }
 
     let cart = await Cart.findOne({ consumerId: req.consumer._id });
@@ -51,7 +90,12 @@ export const addToCart = async (req, res) => {
         const newQty = existingItem.quantity + quantity;
 
         if (newQty > product.stock) {
-          return res.status(400).json({ message: `Cannot exceed stock of ${product.stock}` });
+          return sendResponse(res, {
+            status: false,
+            validation: true,
+            message: `Cannot exceed stock of ${product.stock}`,
+            data: null,
+          });
         }
 
         existingItem.quantity = newQty;
@@ -63,9 +107,19 @@ export const addToCart = async (req, res) => {
     await cart.save();
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
-    res.status(201).json(populatedCart);
+    return sendResponse(res, {
+      status: true,
+      validation: true,
+      message: "Item added to cart successfully",
+      data: populatedCart,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendResponse(res, {
+      status: false,
+      validation: false,
+      message: "Failed to add item to cart",
+      errors: error.message,
+    });
   }
 };
 
@@ -74,30 +128,64 @@ export const updateCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
 
-    // ✅ Validation
     if (!productId || quantity === undefined || quantity < 0) {
-      return res.status(400).json({ message: "ProductId and valid quantity are required" });
+      return sendResponse(res, {
+        status: false,
+        validation: true,
+        message: "ProductId and valid quantity are required",
+        data: null,
+      });
     }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return res.status(400).json({ message: "Invalid product ID" });
+      return sendResponse(res, {
+        status: false,
+        validation: true,
+        message: "Invalid product ID",
+        data: null,
+      });
     }
 
     const cart = await Cart.findOne({ consumerId: req.consumer._id });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    if (!cart) {
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Cart not found",
+        data: null,
+      });
+    }
 
     const item = cart.items.find(item => item.productId.equals(productId));
-    if (!item) return res.status(404).json({ message: "Product not found in cart" });
+    if (!item) {
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Product not found in cart",
+        data: null,
+      });
+    }
 
     const product = await Product.findById(productId);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!product) {
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Product not found",
+        data: null,
+      });
+    }
 
     if (quantity > product.stock) {
-      return res.status(400).json({ message: `Cannot exceed stock of ${product.stock}` });
+      return sendResponse(res, {
+        status: false,
+        validation: true,
+        message: `Cannot exceed stock of ${product.stock}`,
+        data: null,
+      });
     }
 
     if (quantity === 0) {
-      // Remove item
       cart.items = cart.items.filter(i => !i.productId.equals(productId));
     } else {
       item.quantity = quantity;
@@ -106,9 +194,19 @@ export const updateCart = async (req, res) => {
     await cart.save();
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
-    res.json(populatedCart);
+    return sendResponse(res, {
+      status: true,
+      validation: true,
+      message: "Cart updated successfully",
+      data: populatedCart,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendResponse(res, {
+      status: false,
+      validation: false,
+      message: "Failed to update cart",
+      errors: error.message,
+    });
   }
 };
 
@@ -118,30 +216,55 @@ export const deleteCart = async (req, res) => {
     const { productId } = req.body;
 
     const cart = await Cart.findOne({ consumerId: req.consumer._id });
-    if (!cart) return res.status(404).json({ message: "Cart not found" });
+    if (!cart) {
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Cart not found",
+        data: null,
+      });
+    }
 
     if (productId) {
       if (!mongoose.Types.ObjectId.isValid(productId)) {
-        return res.status(400).json({ message: "Invalid product ID" });
+        return sendResponse(res, {
+          status: false,
+          validation: true,
+          message: "Invalid product ID",
+          data: null,
+        });
       }
 
       const initialLength = cart.items.length;
-
       cart.items = cart.items.filter(item => !item.productId.equals(productId));
 
       if (cart.items.length === initialLength) {
-        return res.status(404).json({ message: "Product not found in cart" });
+        return sendResponse(res, {
+          status: false,
+          validation: false,
+          message: "Product not found in cart",
+          data: null,
+        });
       }
     } else {
-      // Clear entire cart
       cart.items = [];
     }
 
     await cart.save();
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
-    res.json({ message: "Cart updated successfully", cart: populatedCart });
+    return sendResponse(res, {
+      status: true,
+      validation: true,
+      message: "Cart cleared/updated successfully",
+      data: populatedCart,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return sendResponse(res, {
+      status: false,
+      validation: false,
+      message: "Failed to delete cart",
+      errors: error.message,
+    });
   }
 };

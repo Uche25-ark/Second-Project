@@ -3,7 +3,7 @@ import sellerRoutes from "./sellerRoutes.js";
 import productRoutes from "./productRoutes.js";
 import cartRoutes from "./cartRoutes.js";
 import orderRoutes from "./orderRoutes.js";
-// import loginRoutes from "./loginRoutes.js";
+
 
 class Routes {
   constructor(app) {
