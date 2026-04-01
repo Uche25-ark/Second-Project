@@ -40,13 +40,12 @@ export const createConsumer = async (req, res) => {
         message: "Validation errors",
         errors,
         data: null,
+        statusCode: 400,
       });
     }
 
     // Check duplicates
-    const existing = await Consumer.findOne({
-      $or: [{ email }, { consumerName }],
-    });
+    const existing = await Consumer.findOne({ $or: [{ email }, { consumerName }] });
 
     if (existing) {
       const duplicateField = existing.email === email ? "Email" : "Consumer name";
@@ -56,6 +55,7 @@ export const createConsumer = async (req, res) => {
         message: `${duplicateField} already exists`,
         errors: null,
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -74,6 +74,7 @@ export const createConsumer = async (req, res) => {
         token: generateToken(consumer._id),
       },
       errors: null,
+      statusCode: 201,
     });
   } catch (error) {
     return sendResponse(res, {
@@ -82,6 +83,7 @@ export const createConsumer = async (req, res) => {
       message: "Failed to create consumer",
       errors: error.message,
       data: null,
+      statusCode: 500,
     });
   }
 };
@@ -94,7 +96,6 @@ export const loginConsumer = async (req, res) => {
     let { email, password } = req.body;
     email = email?.toLowerCase().trim();
 
-    // Check missing fields
     if (!email || !password) {
       return sendResponse(res, {
         status: false,
@@ -102,6 +103,7 @@ export const loginConsumer = async (req, res) => {
         message: "Email and password are required",
         errors: null,
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -113,6 +115,7 @@ export const loginConsumer = async (req, res) => {
         message: "Incorrect email or password",
         errors: null,
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -129,6 +132,7 @@ export const loginConsumer = async (req, res) => {
         token: generateToken(consumer._id),
       },
       errors: null,
+      statusCode: 200,
     });
   } catch (error) {
     return sendResponse(res, {
@@ -137,6 +141,7 @@ export const loginConsumer = async (req, res) => {
       message: "Login failed",
       errors: error.message,
       data: null,
+      statusCode: 500,
     });
   }
 };
@@ -148,10 +153,24 @@ export const getConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id);
     if (!consumer)
-      return sendResponse(res, { status: false, validation: false, message: "Consumer not found", errors: null, data: null });
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Consumer not found",
+        errors: null,
+        data: null,
+        statusCode: 404,
+      });
 
     if (req.consumer._id.toString() !== consumer._id.toString())
-      return sendResponse(res, { status: false, validation: false, message: "Access denied", errors: null, data: null });
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Access denied",
+        errors: null,
+        data: null,
+        statusCode: 403,
+      });
 
     return sendResponse(res, {
       status: true,
@@ -165,9 +184,17 @@ export const getConsumer = async (req, res) => {
         address: consumer.address,
       },
       errors: null,
+      statusCode: 200,
     });
   } catch (error) {
-    return sendResponse(res, { status: false, validation: false, message: "Failed to retrieve consumer", errors: error.message, data: null });
+    return sendResponse(res, {
+      status: false,
+      validation: false,
+      message: "Failed to retrieve consumer",
+      errors: error.message,
+      data: null,
+      statusCode: 500,
+    });
   }
 };
 
@@ -184,6 +211,7 @@ export const getConsumers = async (req, res) => {
         validation: false,
         message: "No consumers found",
         data: null,
+        statusCode: 404,
       });
     }
 
@@ -192,8 +220,8 @@ export const getConsumers = async (req, res) => {
       validation: true,
       message: "Consumers retrieved successfully",
       data: consumers,
+      statusCode: 200,
     });
-
   } catch (error) {
     return sendResponse(res, {
       status: false,
@@ -201,6 +229,7 @@ export const getConsumers = async (req, res) => {
       message: "Failed to retrieve consumers",
       errors: error.message,
       data: null,
+      statusCode: 500,
     });
   }
 };
@@ -212,10 +241,24 @@ export const updateConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id);
     if (!consumer)
-      return sendResponse(res, { status: false, validation: false, message: "Consumer not found", errors: null, data: null });
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Consumer not found",
+        errors: null,
+        data: null,
+        statusCode: 404,
+      });
 
     if (req.consumer._id.toString() !== consumer._id.toString())
-      return sendResponse(res, { status: false, validation: false, message: "Access denied", errors: null, data: null });
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Access denied",
+        errors: null,
+        data: null,
+        statusCode: 403,
+      });
 
     Object.assign(consumer, req.body);
     await consumer.save();
@@ -232,10 +275,18 @@ export const updateConsumer = async (req, res) => {
         address: consumer.address,
       },
       errors: null,
+      statusCode: 200,
     });
   } catch (error) {
     const msg = error.code === 11000 ? "Duplicate field value detected" : error.message;
-    return sendResponse(res, { status: false, validation: false, message: msg, errors: error.message, data: null });
+    return sendResponse(res, {
+      status: false,
+      validation: false,
+      message: msg,
+      errors: error.message,
+      data: null,
+      statusCode: 400,
+    });
   }
 };
 
@@ -246,10 +297,24 @@ export const deleteConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id);
     if (!consumer)
-      return sendResponse(res, { status: false, validation: false, message: "Consumer not found", errors: null, data: null });
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Consumer not found",
+        errors: null,
+        data: null,
+        statusCode: 404,
+      });
 
     if (req.consumer._id.toString() !== consumer._id.toString())
-      return sendResponse(res, { status: false, validation: false, message: "Access denied", errors: null, data: null });
+      return sendResponse(res, {
+        status: false,
+        validation: false,
+        message: "Access denied",
+        errors: null,
+        data: null,
+        statusCode: 403,
+      });
 
     await consumer.deleteOne();
 
@@ -259,8 +324,16 @@ export const deleteConsumer = async (req, res) => {
       message: "Consumer deleted successfully",
       data: null,
       errors: null,
+      statusCode: 200,
     });
   } catch (error) {
-    return sendResponse(res, { status: false, validation: false, message: "Failed to delete consumer", errors: error.message, data: null });
+    return sendResponse(res, {
+      status: false,
+      validation: false,
+      message: "Failed to delete consumer",
+      errors: error.message,
+      data: null,
+      statusCode: 500,
+    });
   }
 };

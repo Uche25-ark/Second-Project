@@ -3,7 +3,7 @@ import Product from "../models/Product.js";
 import mongoose from "mongoose";
 import { sendResponse } from "../utils/apiResponse.js"; // Standard response helper
 
-// GET - VIEW CART
+// ---------------------- GET CART ----------------------
 export const getCart = async (req, res) => {
   try {
     const cart = await Cart.findOne({ consumerId: req.consumer._id })
@@ -15,6 +15,7 @@ export const getCart = async (req, res) => {
         validation: false,
         message: "Cart not found",
         data: null,
+        statusCode: 404,
       });
     }
 
@@ -23,6 +24,7 @@ export const getCart = async (req, res) => {
       validation: true,
       message: "Cart retrieved successfully",
       data: cart,
+      statusCode: 200,
     });
   } catch (error) {
     return sendResponse(res, {
@@ -30,11 +32,12 @@ export const getCart = async (req, res) => {
       validation: false,
       message: "Failed to retrieve cart",
       errors: error.message,
+      statusCode: 500,
     });
   }
 };
 
-// ADD ITEM TO CART
+// ---------------------- ADD ITEM TO CART ----------------------
 export const addToCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
@@ -45,6 +48,7 @@ export const addToCart = async (req, res) => {
         validation: true,
         message: "ProductId and valid quantity are required",
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -54,6 +58,7 @@ export const addToCart = async (req, res) => {
         validation: true,
         message: "Invalid product ID",
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -64,6 +69,7 @@ export const addToCart = async (req, res) => {
         validation: false,
         message: "Product not found",
         data: null,
+        statusCode: 404,
       });
     }
 
@@ -73,6 +79,7 @@ export const addToCart = async (req, res) => {
         validation: true,
         message: `Only ${product.stock} items available in stock`,
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -85,19 +92,17 @@ export const addToCart = async (req, res) => {
       });
     } else {
       const existingItem = cart.items.find(item => item.productId.equals(productId));
-
       if (existingItem) {
         const newQty = existingItem.quantity + quantity;
-
         if (newQty > product.stock) {
           return sendResponse(res, {
             status: false,
             validation: true,
             message: `Cannot exceed stock of ${product.stock}`,
             data: null,
+            statusCode: 400,
           });
         }
-
         existingItem.quantity = newQty;
       } else {
         cart.items.push({ productId, quantity });
@@ -112,6 +117,7 @@ export const addToCart = async (req, res) => {
       validation: true,
       message: "Item added to cart successfully",
       data: populatedCart,
+      statusCode: 201,
     });
   } catch (error) {
     return sendResponse(res, {
@@ -119,11 +125,12 @@ export const addToCart = async (req, res) => {
       validation: false,
       message: "Failed to add item to cart",
       errors: error.message,
+      statusCode: 500,
     });
   }
 };
 
-// UPDATE ITEM QUANTITY
+// ---------------------- UPDATE ITEM QUANTITY ----------------------
 export const updateCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
@@ -134,6 +141,7 @@ export const updateCart = async (req, res) => {
         validation: true,
         message: "ProductId and valid quantity are required",
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -143,6 +151,7 @@ export const updateCart = async (req, res) => {
         validation: true,
         message: "Invalid product ID",
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -153,6 +162,7 @@ export const updateCart = async (req, res) => {
         validation: false,
         message: "Cart not found",
         data: null,
+        statusCode: 404,
       });
     }
 
@@ -163,6 +173,7 @@ export const updateCart = async (req, res) => {
         validation: false,
         message: "Product not found in cart",
         data: null,
+        statusCode: 404,
       });
     }
 
@@ -173,6 +184,7 @@ export const updateCart = async (req, res) => {
         validation: false,
         message: "Product not found",
         data: null,
+        statusCode: 404,
       });
     }
 
@@ -182,6 +194,7 @@ export const updateCart = async (req, res) => {
         validation: true,
         message: `Cannot exceed stock of ${product.stock}`,
         data: null,
+        statusCode: 400,
       });
     }
 
@@ -199,6 +212,7 @@ export const updateCart = async (req, res) => {
       validation: true,
       message: "Cart updated successfully",
       data: populatedCart,
+      statusCode: 200,
     });
   } catch (error) {
     return sendResponse(res, {
@@ -206,11 +220,12 @@ export const updateCart = async (req, res) => {
       validation: false,
       message: "Failed to update cart",
       errors: error.message,
+      statusCode: 500,
     });
   }
 };
 
-// DELETE / CLEAR CART
+// ---------------------- DELETE / CLEAR CART ----------------------
 export const deleteCart = async (req, res) => {
   try {
     const { productId } = req.body;
@@ -222,6 +237,7 @@ export const deleteCart = async (req, res) => {
         validation: false,
         message: "Cart not found",
         data: null,
+        statusCode: 404,
       });
     }
 
@@ -232,6 +248,7 @@ export const deleteCart = async (req, res) => {
           validation: true,
           message: "Invalid product ID",
           data: null,
+          statusCode: 400,
         });
       }
 
@@ -244,6 +261,7 @@ export const deleteCart = async (req, res) => {
           validation: false,
           message: "Product not found in cart",
           data: null,
+          statusCode: 404,
         });
       }
     } else {
@@ -258,6 +276,7 @@ export const deleteCart = async (req, res) => {
       validation: true,
       message: "Cart cleared/updated successfully",
       data: populatedCart,
+      statusCode: 200,
     });
   } catch (error) {
     return sendResponse(res, {
@@ -265,6 +284,7 @@ export const deleteCart = async (req, res) => {
       validation: false,
       message: "Failed to delete cart",
       errors: error.message,
+      statusCode: 500,
     });
   }
 };
