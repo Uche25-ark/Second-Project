@@ -1,11 +1,14 @@
 import { sendResponse } from "../utils/apiResponse.js";
 
 export const errorHandler = (err, req, res, next) => {
-  const code = res.statusCode === 200 ? 500 : res.statusCode;
+  const code = res.statusCode === 200
+    ? StatusCodes.INTERNAL_SERVER_ERROR.code
+    : res.statusCode;
+
   return sendResponse(res, {
-    status: false,
+    code,
     validation: false,
     message: err.message || "Server Error",
-    code
+    errors: err.message,
   });
 };

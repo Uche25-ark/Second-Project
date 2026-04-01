@@ -1,7 +1,6 @@
 import Seller from "../models/Seller.js";
 import jwt from "jsonwebtoken";
 import { sendResponse } from "../utils/apiResponse.js";
-import { StatusCodes } from "../utils/statusCodes.js";
 
 // Generate JWT Token
 const generateToken = (id) =>
@@ -15,7 +14,6 @@ export const createSeller = async (req, res) => {
   try {
     let { sellerName, email, storeAddress, password } = req.body;
 
-    // Normalize
     sellerName = sellerName?.trim();
     email = email?.toLowerCase().trim();
     storeAddress = storeAddress?.trim();
@@ -35,11 +33,12 @@ export const createSeller = async (req, res) => {
 
     if (errors.length > 0) {
       return sendResponse(res, {
-        statusCode: StatusCodes.UNPROCESSABLE_ENTITY.code,
+        code: 422, // ✅ use 'code' here
+        status: false,
+        validation: true,
         message: "Validation errors",
         errors,
         data: null,
-        validation: true,
       });
     }
 
@@ -48,12 +47,13 @@ export const createSeller = async (req, res) => {
     });
 
     if (existing) {
-      const field =
-        existing.email === email ? "Email" : "Seller name";
-
+      const field = existing.email === email ? "Email" : "Seller name";
       return sendResponse(res, {
-        statusCode: StatusCodes.CONFLICT.code,
+        code: 409, // ✅ use 'code' here
+        status: false,
+        validation: false,
         message: `${field} already exists`,
+        errors: null,
         data: null,
       });
     }
@@ -66,7 +66,9 @@ export const createSeller = async (req, res) => {
     });
 
     return sendResponse(res, {
-      statusCode: StatusCodes.CREATED.code,
+      code: 201, // ✅ correct status code
+      status: true,
+      validation: true,
       message: "Seller created successfully",
       data: {
         _id: seller._id,
@@ -75,17 +77,20 @@ export const createSeller = async (req, res) => {
         storeAddress: seller.storeAddress,
         token: generateToken(seller._id),
       },
+      errors: null,
     });
 
   } catch (error) {
     return sendResponse(res, {
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR.code,
+      code: 500,
+      status: false,
+      validation: false,
       message: "Failed to create seller",
       errors: error.message,
+      data: null,
     });
   }
 };
-
 
 // ============================
 // LOGIN SELLER
@@ -97,8 +102,12 @@ export const loginSeller = async (req, res) => {
 
     if (!email || !password) {
       return sendResponse(res, {
-        statusCode: StatusCodes.BAD_REQUEST.code,
+        status: false,
+        validation: true,
         message: "Email and password are required",
+        errors: null,
+        data: null,
+        statusCode: 400,
       });
     }
 
@@ -106,13 +115,18 @@ export const loginSeller = async (req, res) => {
 
     if (!seller || !(await seller.comparePassword(password))) {
       return sendResponse(res, {
-        statusCode: StatusCodes.UNAUTHORIZED.code,
+        status: false,
+        validation: false,
         message: "Incorrect email or password",
+        errors: null,
+        data: null,
+        statusCode: 401,
       });
     }
 
     return sendResponse(res, {
-      statusCode: StatusCodes.OK.code,
+      status: true,
+      validation: true,
       message: "Login successful",
       data: {
         _id: seller._id,
@@ -121,13 +135,18 @@ export const loginSeller = async (req, res) => {
         storeAddress: seller.storeAddress,
         token: generateToken(seller._id),
       },
+      errors: null,
+      statusCode: 200,
     });
 
   } catch (error) {
     return sendResponse(res, {
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR.code,
+      status: false,
+      validation: false,
       message: "Login failed",
       errors: error.message,
+      data: null,
+      statusCode: 500,
     });
   }
 };
@@ -138,40 +157,54 @@ export const loginSeller = async (req, res) => {
 // ============================
 export const getSeller = async (req, res) => {
   try {
-    const seller = await Seller.findById(req.params.id);
+    const seller = await Seller.findById(req.params.id).select("-password");
 
     if (!seller) {
       return sendResponse(res, {
-        statusCode: StatusCodes.NOT_FOUND.code,
+        status: false,
+        validation: false,
         message: "Seller not found",
+        data: null,
+        errors: null,
+        statusCode: 404,
       });
     }
 
     if (req.seller._id.toString() !== seller._id.toString()) {
       return sendResponse(res, {
-        statusCode: StatusCodes.FORBIDDEN.code,
+        status: false,
+        validation: false,
         message: "Access denied",
+        data: null,
+        errors: null,
+        statusCode: 403,
       });
     }
 
     return sendResponse(res, {
-      statusCode: StatusCodes.OK.code,
+      status: true,
+      validation: true,
       message: "Seller retrieved successfully",
       data: seller,
+      errors: null,
+      statusCode: 200,
     });
 
   } catch (error) {
     return sendResponse(res, {
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR.code,
+      status: false,
+      validation: false,
       message: "Failed to retrieve seller",
       errors: error.message,
+      data: null,
+      statusCode: 500,
     });
   }
 };
 
 
 // ============================
-// GET ALL SELLERS
+// ✅ GET ALL SELLERS (KEPT)
 // ============================
 export const getSellers = async (req, res) => {
   try {
@@ -179,22 +212,32 @@ export const getSellers = async (req, res) => {
 
     if (!sellers || sellers.length === 0) {
       return sendResponse(res, {
-        statusCode: StatusCodes.NOT_FOUND.code,
+        status: false,
+        validation: false,
         message: "No sellers found",
+        data: null,
+        errors: null,
+        statusCode: 404,
       });
     }
 
     return sendResponse(res, {
-      statusCode: StatusCodes.OK.code,
+      status: true,
+      validation: true,
       message: "Sellers retrieved successfully",
       data: sellers,
+      errors: null,
+      statusCode: 200,
     });
 
   } catch (error) {
     return sendResponse(res, {
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR.code,
+      status: false,
+      validation: false,
       message: "Failed to retrieve sellers",
       errors: error.message,
+      data: null,
+      statusCode: 500,
     });
   }
 };
@@ -209,15 +252,23 @@ export const updateSeller = async (req, res) => {
 
     if (!seller) {
       return sendResponse(res, {
-        statusCode: StatusCodes.NOT_FOUND.code,
+        status: false,
+        validation: false,
         message: "Seller not found",
+        data: null,
+        errors: null,
+        statusCode: 404,
       });
     }
 
     if (req.seller._id.toString() !== seller._id.toString()) {
       return sendResponse(res, {
-        statusCode: StatusCodes.FORBIDDEN.code,
+        status: false,
+        validation: false,
         message: "Access denied",
+        data: null,
+        errors: null,
+        statusCode: 403,
       });
     }
 
@@ -225,16 +276,22 @@ export const updateSeller = async (req, res) => {
     await seller.save();
 
     return sendResponse(res, {
-      statusCode: StatusCodes.OK.code,
+      status: true,
+      validation: true,
       message: "Seller updated successfully",
       data: seller,
+      errors: null,
+      statusCode: 200,
     });
 
   } catch (error) {
     return sendResponse(res, {
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR.code,
+      status: false,
+      validation: false,
       message: "Failed to update seller",
       errors: error.message,
+      data: null,
+      statusCode: 500,
     });
   }
 };
@@ -249,30 +306,45 @@ export const deleteSeller = async (req, res) => {
 
     if (!seller) {
       return sendResponse(res, {
-        statusCode: StatusCodes.NOT_FOUND.code,
+        status: false,
+        validation: false,
         message: "Seller not found",
+        data: null,
+        errors: null,
+        statusCode: 404,
       });
     }
 
     if (req.seller._id.toString() !== seller._id.toString()) {
       return sendResponse(res, {
-        statusCode: StatusCodes.FORBIDDEN.code,
+        status: false,
+        validation: false,
         message: "Access denied",
+        data: null,
+        errors: null,
+        statusCode: 403,
       });
     }
 
     await seller.deleteOne();
 
     return sendResponse(res, {
-      statusCode: StatusCodes.OK.code,
+      status: true,
+      validation: true,
       message: "Seller deleted successfully",
+      data: null,
+      errors: null,
+      statusCode: 200,
     });
 
   } catch (error) {
     return sendResponse(res, {
-      statusCode: StatusCodes.INTERNAL_SERVER_ERROR.code,
+      status: false,
+      validation: false,
       message: "Failed to delete seller",
       errors: error.message,
+      data: null,
+      statusCode: 500,
     });
   }
 };

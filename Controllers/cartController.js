@@ -1,7 +1,8 @@
 import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
 import mongoose from "mongoose";
-import { sendResponse } from "../utils/apiResponse.js"; // Standard response helper
+import { sendResponse } from "../utils/apiResponse.js";
+import { StatusCodes } from "../utils/statusCodes.js";
 
 // ---------------------- GET CART ----------------------
 export const getCart = async (req, res) => {
@@ -11,28 +12,24 @@ export const getCart = async (req, res) => {
 
     if (!cart) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.NOT_FOUND.code,
         validation: false,
         message: "Cart not found",
-        data: null,
-        statusCode: 404,
       });
     }
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Cart retrieved successfully",
       data: cart,
-      statusCode: 200,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to retrieve cart",
       errors: error.message,
-      statusCode: 500,
     });
   }
 };
@@ -44,42 +41,34 @@ export const addToCart = async (req, res) => {
 
     if (!productId || quantity === undefined || quantity < 1) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.BAD_REQUEST.code,
         validation: true,
         message: "ProductId and valid quantity are required",
-        data: null,
-        statusCode: 400,
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.BAD_REQUEST.code,
         validation: true,
         message: "Invalid product ID",
-        data: null,
-        statusCode: 400,
       });
     }
 
     const product = await Product.findById(productId);
     if (!product) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.NOT_FOUND.code,
         validation: false,
         message: "Product not found",
-        data: null,
-        statusCode: 404,
       });
     }
 
     if (quantity > product.stock) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.BAD_REQUEST.code,
         validation: true,
         message: `Only ${product.stock} items available in stock`,
-        data: null,
-        statusCode: 400,
       });
     }
 
@@ -91,18 +80,21 @@ export const addToCart = async (req, res) => {
         items: [{ productId, quantity }],
       });
     } else {
-      const existingItem = cart.items.find(item => item.productId.equals(productId));
+      const existingItem = cart.items.find(item =>
+        item.productId.equals(productId)
+      );
+
       if (existingItem) {
         const newQty = existingItem.quantity + quantity;
+
         if (newQty > product.stock) {
           return sendResponse(res, {
-            status: false,
+            code: StatusCodes.BAD_REQUEST.code,
             validation: true,
             message: `Cannot exceed stock of ${product.stock}`,
-            data: null,
-            statusCode: 400,
           });
         }
+
         existingItem.quantity = newQty;
       } else {
         cart.items.push({ productId, quantity });
@@ -113,93 +105,83 @@ export const addToCart = async (req, res) => {
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.CREATED.code,
       message: "Item added to cart successfully",
       data: populatedCart,
-      statusCode: 201,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to add item to cart",
       errors: error.message,
-      statusCode: 500,
     });
   }
 };
 
-// ---------------------- UPDATE ITEM QUANTITY ----------------------
+// ---------------------- UPDATE CART ----------------------
 export const updateCart = async (req, res) => {
   try {
     const { productId, quantity } = req.body;
 
     if (!productId || quantity === undefined || quantity < 0) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.BAD_REQUEST.code,
         validation: true,
         message: "ProductId and valid quantity are required",
-        data: null,
-        statusCode: 400,
       });
     }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.BAD_REQUEST.code,
         validation: true,
         message: "Invalid product ID",
-        data: null,
-        statusCode: 400,
       });
     }
 
     const cart = await Cart.findOne({ consumerId: req.consumer._id });
     if (!cart) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.NOT_FOUND.code,
         validation: false,
         message: "Cart not found",
-        data: null,
-        statusCode: 404,
       });
     }
 
-    const item = cart.items.find(item => item.productId.equals(productId));
+    const item = cart.items.find(item =>
+      item.productId.equals(productId)
+    );
+
     if (!item) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.NOT_FOUND.code,
         validation: false,
         message: "Product not found in cart",
-        data: null,
-        statusCode: 404,
       });
     }
 
     const product = await Product.findById(productId);
     if (!product) {
       return sendResponse(res, {
-        status: false,
-        validation: false,
+        code: StatusCodes.NOT_FOUND.code,
         message: "Product not found",
-        data: null,
-        statusCode: 404,
       });
     }
 
     if (quantity > product.stock) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.BAD_REQUEST.code,
         validation: true,
         message: `Cannot exceed stock of ${product.stock}`,
-        data: null,
-        statusCode: 400,
       });
     }
 
     if (quantity === 0) {
-      cart.items = cart.items.filter(i => !i.productId.equals(productId));
+      cart.items = cart.items.filter(i =>
+        !i.productId.equals(productId)
+      );
     } else {
       item.quantity = quantity;
     }
@@ -208,19 +190,17 @@ export const updateCart = async (req, res) => {
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Cart updated successfully",
       data: populatedCart,
-      statusCode: 200,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to update cart",
       errors: error.message,
-      statusCode: 500,
     });
   }
 };
@@ -233,37 +213,33 @@ export const deleteCart = async (req, res) => {
     const cart = await Cart.findOne({ consumerId: req.consumer._id });
     if (!cart) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.NOT_FOUND.code,
         validation: false,
         message: "Cart not found",
-        data: null,
-        statusCode: 404,
       });
     }
 
     if (productId) {
       if (!mongoose.Types.ObjectId.isValid(productId)) {
         return sendResponse(res, {
-          status: false,
+          code: StatusCodes.BAD_REQUEST.code,
           validation: true,
           message: "Invalid product ID",
-          data: null,
-          statusCode: 400,
         });
       }
 
       const initialLength = cart.items.length;
-      cart.items = cart.items.filter(item => !item.productId.equals(productId));
+      cart.items = cart.items.filter(item =>
+        !item.productId.equals(productId)
+      );
 
       if (cart.items.length === initialLength) {
         return sendResponse(res, {
-          status: false,
-          validation: false,
+          code: StatusCodes.NOT_FOUND.code,
           message: "Product not found in cart",
-          data: null,
-          statusCode: 404,
         });
       }
+
     } else {
       cart.items = [];
     }
@@ -272,19 +248,17 @@ export const deleteCart = async (req, res) => {
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Cart cleared/updated successfully",
       data: populatedCart,
-      statusCode: 200,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to delete cart",
       errors: error.message,
-      statusCode: 500,
     });
   }
 };

@@ -1,6 +1,7 @@
 import Consumer from "../models/Consumer.js";
 import jwt from "jsonwebtoken";
 import { sendResponse } from "../utils/apiResponse.js";
+import { StatusCodes } from "../utils/statusCodes.js";
 
 // Generate JWT Token
 const generateToken = (id) =>
@@ -13,7 +14,6 @@ export const createConsumer = async (req, res) => {
   try {
     let { consumerName, email, password, phoneNumber, address } = req.body;
 
-    // Normalize inputs
     consumerName = consumerName?.trim();
     email = email?.toLowerCase().trim();
     phoneNumber = phoneNumber?.trim();
@@ -21,49 +21,54 @@ export const createConsumer = async (req, res) => {
 
     const errors = [];
 
-    // Required fields
     if (!consumerName) errors.push("consumerName is required");
     if (!email) errors.push("email is required");
     if (!password) errors.push("password is required");
     if (!phoneNumber) errors.push("phoneNumber is required");
     if (!address) errors.push("address is required");
 
-    // Format checks
-    if (email && !/^\S+@\S+\.\S+$/.test(email)) errors.push("email is not valid");
-    if (password && password.length < 6) errors.push("password must be at least 6 characters");
-    if (phoneNumber && !/^\d{10,15}$/.test(phoneNumber)) errors.push("phoneNumber must be 10-15 digits");
+    if (email && !/^\S+@\S+\.\S+$/.test(email))
+      errors.push("email is not valid");
+
+    if (password && password.length < 6)
+      errors.push("password must be at least 6 characters");
+
+    if (phoneNumber && !/^\d{10,15}$/.test(phoneNumber))
+      errors.push("phoneNumber must be 10-15 digits");
 
     if (errors.length > 0) {
       return sendResponse(res, {
-        status: false,
+        code: StatusCodes.UNPROCESSABLE_ENTITY.code,
         validation: true,
         message: "Validation errors",
         errors,
-        data: null,
-        statusCode: 400,
       });
     }
 
-    // Check duplicates
-    const existing = await Consumer.findOne({ $or: [{ email }, { consumerName }] });
+    const existing = await Consumer.findOne({
+      $or: [{ email }, { consumerName }],
+    });
 
     if (existing) {
-      const duplicateField = existing.email === email ? "Email" : "Consumer name";
+      const duplicateField =
+        existing.email === email ? "Email" : "Consumer name";
+
       return sendResponse(res, {
-        status: false,
-        validation: false,
+        code: StatusCodes.CONFLICT.code,
         message: `${duplicateField} already exists`,
-        errors: null,
-        data: null,
-        statusCode: 400,
       });
     }
 
-    const consumer = await Consumer.create({ consumerName, email, password, phoneNumber, address });
+    const consumer = await Consumer.create({
+      consumerName,
+      email,
+      password,
+      phoneNumber,
+      address,
+    });
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.CREATED.code,
       message: "Consumer created successfully",
       data: {
         _id: consumer._id,
@@ -73,17 +78,14 @@ export const createConsumer = async (req, res) => {
         address: consumer.address,
         token: generateToken(consumer._id),
       },
-      errors: null,
-      statusCode: 201,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to create consumer",
       errors: error.message,
-      data: null,
-      statusCode: 500,
     });
   }
 };
@@ -98,30 +100,22 @@ export const loginConsumer = async (req, res) => {
 
     if (!email || !password) {
       return sendResponse(res, {
-        status: false,
-        validation: false,
+        code: StatusCodes.BAD_REQUEST.code,
         message: "Email and password are required",
-        errors: null,
-        data: null,
-        statusCode: 400,
       });
     }
 
     const consumer = await Consumer.findOne({ email });
+
     if (!consumer || !(await consumer.comparePassword(password))) {
       return sendResponse(res, {
-        status: false,
-        validation: false,
+        code: StatusCodes.UNAUTHORIZED.code,
         message: "Incorrect email or password",
-        errors: null,
-        data: null,
-        statusCode: 400,
       });
     }
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Login successful",
       data: {
         _id: consumer._id,
@@ -131,17 +125,14 @@ export const loginConsumer = async (req, res) => {
         address: consumer.address,
         token: generateToken(consumer._id),
       },
-      errors: null,
-      statusCode: 200,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Login failed",
       errors: error.message,
-      data: null,
-      statusCode: 500,
     });
   }
 };
@@ -152,29 +143,23 @@ export const loginConsumer = async (req, res) => {
 export const getConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id);
-    if (!consumer)
-      return sendResponse(res, {
-        status: false,
-        validation: false,
-        message: "Consumer not found",
-        errors: null,
-        data: null,
-        statusCode: 404,
-      });
 
-    if (req.consumer._id.toString() !== consumer._id.toString())
+    if (!consumer) {
       return sendResponse(res, {
-        status: false,
-        validation: false,
-        message: "Access denied",
-        errors: null,
-        data: null,
-        statusCode: 403,
+        code: StatusCodes.NOT_FOUND.code,
+        message: "Consumer not found",
       });
+    }
+
+    if (req.consumer._id.toString() !== consumer._id.toString()) {
+      return sendResponse(res, {
+        code: StatusCodes.FORBIDDEN.code,
+        message: "Access denied",
+      });
+    }
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Consumer retrieved successfully",
       data: {
         _id: consumer._id,
@@ -183,17 +168,14 @@ export const getConsumer = async (req, res) => {
         phoneNumber: consumer.phoneNumber,
         address: consumer.address,
       },
-      errors: null,
-      statusCode: 200,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to retrieve consumer",
       errors: error.message,
-      data: null,
-      statusCode: 500,
     });
   }
 };
@@ -207,133 +189,105 @@ export const getConsumers = async (req, res) => {
 
     if (!consumers || consumers.length === 0) {
       return sendResponse(res, {
-        status: false,
-        validation: false,
+        code: StatusCodes.NOT_FOUND.code,
         message: "No consumers found",
-        data: null,
-        statusCode: 404,
       });
     }
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Consumers retrieved successfully",
       data: consumers,
-      statusCode: 200,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to retrieve consumers",
       errors: error.message,
-      data: null,
-      statusCode: 500,
     });
   }
 };
 
 // ============================
-// UPDATE CONSUMER (OWN PROFILE)
+// UPDATE CONSUMER
 // ============================
 export const updateConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id);
-    if (!consumer)
-      return sendResponse(res, {
-        status: false,
-        validation: false,
-        message: "Consumer not found",
-        errors: null,
-        data: null,
-        statusCode: 404,
-      });
 
-    if (req.consumer._id.toString() !== consumer._id.toString())
+    if (!consumer) {
       return sendResponse(res, {
-        status: false,
-        validation: false,
-        message: "Access denied",
-        errors: null,
-        data: null,
-        statusCode: 403,
+        code: StatusCodes.NOT_FOUND.code,
+        message: "Consumer not found",
       });
+    }
+
+    if (req.consumer._id.toString() !== consumer._id.toString()) {
+      return sendResponse(res, {
+        code: StatusCodes.FORBIDDEN.code,
+        message: "Access denied",
+      });
+    }
 
     Object.assign(consumer, req.body);
     await consumer.save();
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Consumer updated successfully",
-      data: {
-        _id: consumer._id,
-        consumerName: consumer.consumerName,
-        email: consumer.email,
-        phoneNumber: consumer.phoneNumber,
-        address: consumer.address,
-      },
-      errors: null,
-      statusCode: 200,
+      data: consumer,
     });
+
   } catch (error) {
-    const msg = error.code === 11000 ? "Duplicate field value detected" : error.message;
+    const msg =
+      error.code === 11000
+        ? "Duplicate field value detected"
+        : error.message;
+
     return sendResponse(res, {
-      status: false,
-      validation: false,
+      code: StatusCodes.BAD_REQUEST.code,
       message: msg,
       errors: error.message,
-      data: null,
-      statusCode: 400,
     });
   }
 };
 
 // ============================
-// DELETE CONSUMER (OWN PROFILE)
+// DELETE CONSUMER
 // ============================
 export const deleteConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id);
-    if (!consumer)
-      return sendResponse(res, {
-        status: false,
-        validation: false,
-        message: "Consumer not found",
-        errors: null,
-        data: null,
-        statusCode: 404,
-      });
 
-    if (req.consumer._id.toString() !== consumer._id.toString())
+    if (!consumer) {
       return sendResponse(res, {
-        status: false,
-        validation: false,
-        message: "Access denied",
-        errors: null,
-        data: null,
-        statusCode: 403,
+        code: StatusCodes.NOT_FOUND.code,
+        message: "Consumer not found",
       });
+    }
+
+    if (req.consumer._id.toString() !== consumer._id.toString()) {
+      return sendResponse(res, {
+        code: StatusCodes.FORBIDDEN.code,
+        message: "Access denied",
+      });
+    }
 
     await consumer.deleteOne();
 
     return sendResponse(res, {
-      status: true,
-      validation: true,
+      code: StatusCodes.OK.code,
       message: "Consumer deleted successfully",
-      data: null,
-      errors: null,
-      statusCode: 200,
     });
+
   } catch (error) {
     return sendResponse(res, {
-      status: false,
+      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
       validation: false,
       message: "Failed to delete consumer",
       errors: error.message,
-      data: null,
-      statusCode: 500,
     });
   }
 };
