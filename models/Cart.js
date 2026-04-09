@@ -6,7 +6,7 @@ const cartSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Consumer",
       required: true,
-      unique: true, // ensure one cart per consumer
+      unique: true, 
     },
     items: [
       {
@@ -26,7 +26,7 @@ const cartSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Optional: add a method to calculate total items in cart
+// Add a method to calculate total items in cart
 cartSchema.methods.getTotalItems = function () {
   return this.items.reduce((acc, item) => acc + item.quantity, 0);
 };

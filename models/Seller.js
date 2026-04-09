@@ -19,14 +19,17 @@ const sellerSchema = new mongoose.Schema({
   password: { 
     type: String,
     required: [true, "Password is required"],
-    minlength: [6, "Password must be at least 6 characters"]
+    minlength: [6, "Password must be at least 6 characters"],
+    select: false 
   },
   storeAddress: { 
     type: String,
     required: [true, "Store address is required"],
     trim: true
   },
-}, { timestamps: true });
+}, { timestamps: true },
+   { versionKey: false }
+);
 
 // Hash password before saving
 sellerSchema.pre("save", async function(next) {

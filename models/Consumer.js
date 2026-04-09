@@ -20,6 +20,7 @@ const consumerSchema = new mongoose.Schema(
       type: String,
       required: true,
       minlength: 6,
+      select: false, 
     },
     phoneNumber: {
       type: String,
@@ -35,7 +36,10 @@ const consumerSchema = new mongoose.Schema(
       trim: true,
     },
   },
-  { timestamps: true }
+  { 
+    timestamps: true,
+    versionKey: false   // ❌ removes __v
+  }
 );
 
 // Hash password before saving

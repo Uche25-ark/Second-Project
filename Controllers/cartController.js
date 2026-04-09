@@ -10,27 +10,14 @@ export const getCart = async (req, res) => {
     const cart = await Cart.findOne({ consumerId: req.consumer._id })
       .populate("items.productId", "name price stock");
 
-    if (!cart) {
-      return sendResponse(res, {
-        code: StatusCodes.NOT_FOUND.code,
-        validation: false,
-        message: "Cart not found",
-      });
+    if (!cart || cart.items.length === 0) {
+      return sendResponse(res, { code: StatusCodes.NOT_FOUND, message: "Cart is empty" });
     }
 
-    return sendResponse(res, {
-      code: StatusCodes.OK.code,
-      message: "Cart retrieved successfully",
-      data: cart,
-    });
+    return sendResponse(res, { data: cart });
 
   } catch (error) {
-    return sendResponse(res, {
-      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
-      validation: false,
-      message: "Failed to retrieve cart",
-      errors: error.message,
-    });
+    return sendResponse(res, { code: StatusCodes.INTERNAL_SERVER_ERROR, errors: error.message });
   }
 };
 
@@ -40,62 +27,26 @@ export const addToCart = async (req, res) => {
     const { productId, quantity } = req.body;
 
     if (!productId || quantity === undefined || quantity < 1) {
-      return sendResponse(res, {
-        code: StatusCodes.BAD_REQUEST.code,
-        validation: true,
-        message: "ProductId and valid quantity are required",
-      });
+      return sendResponse(res, { code: StatusCodes.BAD_REQUEST, message: "Valid productId and quantity required" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return sendResponse(res, {
-        code: StatusCodes.BAD_REQUEST.code,
-        validation: true,
-        message: "Invalid product ID",
-      });
+      return sendResponse(res, { code: StatusCodes.BAD_REQUEST, message: "Invalid product ID" });
     }
 
     const product = await Product.findById(productId);
-    if (!product) {
-      return sendResponse(res, {
-        code: StatusCodes.NOT_FOUND.code,
-        validation: false,
-        message: "Product not found",
-      });
-    }
-
-    if (quantity > product.stock) {
-      return sendResponse(res, {
-        code: StatusCodes.BAD_REQUEST.code,
-        validation: true,
-        message: `Only ${product.stock} items available in stock`,
-      });
-    }
+    if (!product) return sendResponse(res, { code: StatusCodes.NOT_FOUND, message: "Product not found" });
 
     let cart = await Cart.findOne({ consumerId: req.consumer._id });
 
     if (!cart) {
-      cart = new Cart({
-        consumerId: req.consumer._id,
-        items: [{ productId, quantity }],
-      });
+      cart = new Cart({ consumerId: req.consumer._id, items: [{ productId, quantity }] });
     } else {
-      const existingItem = cart.items.find(item =>
-        item.productId.equals(productId)
-      );
-
-      if (existingItem) {
-        const newQty = existingItem.quantity + quantity;
-
-        if (newQty > product.stock) {
-          return sendResponse(res, {
-            code: StatusCodes.BAD_REQUEST.code,
-            validation: true,
-            message: `Cannot exceed stock of ${product.stock}`,
-          });
-        }
-
-        existingItem.quantity = newQty;
+      const item = cart.items.find(i => i.productId.equals(productId));
+      if (item) {
+        const newQty = item.quantity + quantity;
+        if (newQty > product.stock) return sendResponse(res, { code: StatusCodes.BAD_REQUEST, message: `Cannot exceed stock of ${product.stock}` });
+        item.quantity = newQty;
       } else {
         cart.items.push({ productId, quantity });
       }
@@ -104,19 +55,10 @@ export const addToCart = async (req, res) => {
     await cart.save();
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
-    return sendResponse(res, {
-      code: StatusCodes.CREATED.code,
-      message: "Item added to cart successfully",
-      data: populatedCart,
-    });
+    return sendResponse(res, { code: StatusCodes.CREATED, data: populatedCart });
 
   } catch (error) {
-    return sendResponse(res, {
-      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
-      validation: false,
-      message: "Failed to add item to cart",
-      errors: error.message,
-    });
+    return sendResponse(res, { code: StatusCodes.INTERNAL_SERVER_ERROR, errors: error.message });
   }
 };
 
@@ -126,82 +68,36 @@ export const updateCart = async (req, res) => {
     const { productId, quantity } = req.body;
 
     if (!productId || quantity === undefined || quantity < 0) {
-      return sendResponse(res, {
-        code: StatusCodes.BAD_REQUEST.code,
-        validation: true,
-        message: "ProductId and valid quantity are required",
-      });
+      return sendResponse(res, { code: StatusCodes.BAD_REQUEST, message: "Valid productId and quantity required" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
-      return sendResponse(res, {
-        code: StatusCodes.BAD_REQUEST.code,
-        validation: true,
-        message: "Invalid product ID",
-      });
+      return sendResponse(res, { code: StatusCodes.BAD_REQUEST, message: "Invalid product ID" });
     }
 
     const cart = await Cart.findOne({ consumerId: req.consumer._id });
-    if (!cart) {
-      return sendResponse(res, {
-        code: StatusCodes.NOT_FOUND.code,
-        validation: false,
-        message: "Cart not found",
-      });
-    }
+    if (!cart) return sendResponse(res, { code: StatusCodes.NOT_FOUND, message: "Cart not found" });
 
-    const item = cart.items.find(item =>
-      item.productId.equals(productId)
-    );
-
-    if (!item) {
-      return sendResponse(res, {
-        code: StatusCodes.NOT_FOUND.code,
-        validation: false,
-        message: "Product not found in cart",
-      });
-    }
+    const item = cart.items.find(i => i.productId.equals(productId));
+    if (!item) return sendResponse(res, { code: StatusCodes.NOT_FOUND, message: "Product not in cart" });
 
     const product = await Product.findById(productId);
-    if (!product) {
-      return sendResponse(res, {
-        code: StatusCodes.NOT_FOUND.code,
-        message: "Product not found",
-      });
-    }
-
-    if (quantity > product.stock) {
-      return sendResponse(res, {
-        code: StatusCodes.BAD_REQUEST.code,
-        validation: true,
-        message: `Cannot exceed stock of ${product.stock}`,
-      });
-    }
+    if (!product) return sendResponse(res, { code: StatusCodes.NOT_FOUND, message: "Product not found" });
 
     if (quantity === 0) {
-      cart.items = cart.items.filter(i =>
-        !i.productId.equals(productId)
-      );
+      cart.items = cart.items.filter(i => !i.productId.equals(productId));
     } else {
+      if (quantity > product.stock) return sendResponse(res, { code: StatusCodes.BAD_REQUEST, message: `Cannot exceed stock of ${product.stock}` });
       item.quantity = quantity;
     }
 
     await cart.save();
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
-    return sendResponse(res, {
-      code: StatusCodes.OK.code,
-      message: "Cart updated successfully",
-      data: populatedCart,
-    });
+    return sendResponse(res, { data: populatedCart });
 
   } catch (error) {
-    return sendResponse(res, {
-      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
-      validation: false,
-      message: "Failed to update cart",
-      errors: error.message,
-    });
+    return sendResponse(res, { code: StatusCodes.INTERNAL_SERVER_ERROR, errors: error.message });
   }
 };
 
@@ -211,35 +107,11 @@ export const deleteCart = async (req, res) => {
     const { productId } = req.body;
 
     const cart = await Cart.findOne({ consumerId: req.consumer._id });
-    if (!cart) {
-      return sendResponse(res, {
-        code: StatusCodes.NOT_FOUND.code,
-        validation: false,
-        message: "Cart not found",
-      });
-    }
+    if (!cart) return sendResponse(res, { code: StatusCodes.NOT_FOUND, message: "Cart not found" });
 
     if (productId) {
-      if (!mongoose.Types.ObjectId.isValid(productId)) {
-        return sendResponse(res, {
-          code: StatusCodes.BAD_REQUEST.code,
-          validation: true,
-          message: "Invalid product ID",
-        });
-      }
-
-      const initialLength = cart.items.length;
-      cart.items = cart.items.filter(item =>
-        !item.productId.equals(productId)
-      );
-
-      if (cart.items.length === initialLength) {
-        return sendResponse(res, {
-          code: StatusCodes.NOT_FOUND.code,
-          message: "Product not found in cart",
-        });
-      }
-
+      if (!mongoose.Types.ObjectId.isValid(productId)) return sendResponse(res, { code: StatusCodes.BAD_REQUEST, message: "Invalid product ID" });
+      cart.items = cart.items.filter(i => !i.productId.equals(productId));
     } else {
       cart.items = [];
     }
@@ -247,18 +119,9 @@ export const deleteCart = async (req, res) => {
     await cart.save();
     const populatedCart = await cart.populate("items.productId", "name price stock");
 
-    return sendResponse(res, {
-      code: StatusCodes.OK.code,
-      message: "Cart cleared/updated successfully",
-      data: populatedCart,
-    });
+    return sendResponse(res, { data: populatedCart });
 
   } catch (error) {
-    return sendResponse(res, {
-      code: StatusCodes.INTERNAL_SERVER_ERROR.code,
-      validation: false,
-      message: "Failed to delete cart",
-      errors: error.message,
-    });
+    return sendResponse(res, { code: StatusCodes.INTERNAL_SERVER_ERROR, errors: error.message });
   }
 };
