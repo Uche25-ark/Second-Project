@@ -47,7 +47,7 @@ export const checkout = async (req, res) => {
     await cart.save();
 
   const formattedOrder = {
-  orderId: order._id.toString(), // ✅ ADD THIS
+  orderId: order._id.toString(),
   consumerId: order.consumerId.toString(),
   items: order.items.map(item => ({
     productId: item.productId.toString(),
@@ -115,7 +115,7 @@ export const getOrder = async (req, res) => {
   }
 };
 
-
+// UPDATE ORDER
 export const updateOrder = async (req, res) => {
   try {
     const { status } = req.body;
@@ -132,7 +132,7 @@ export const updateOrder = async (req, res) => {
       });
     }
 
-    // ✅ First find order
+    // First find order
     const order = await Order.findById(req.params.id);
 
     if (!order) {
@@ -142,7 +142,7 @@ export const updateOrder = async (req, res) => {
       });
     }
 
-    // ✅ Authorization check (IMPORTANT 🔥)
+    // Authorization check
     if (req.consumer._id.toString() !== order.consumerId.toString()) {
       return sendResponse(res, {
         code: StatusCodes.FORBIDDEN,
@@ -150,11 +150,11 @@ export const updateOrder = async (req, res) => {
       });
     }
 
-    // ✅ Update status
+    // Update status
     order.status = status;
     await order.save();
 
-    // ✅ Clean response
+    // Clean response
     const formattedOrder = {
       orderId: order._id.toString(),
       consumerId: order.consumerId.toString(),

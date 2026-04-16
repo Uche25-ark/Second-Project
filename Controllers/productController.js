@@ -9,14 +9,14 @@ export const createProduct = async (req, res) => {
   try {
     const { name, price, description, stock, sellerId, picture } = req.body;
 
-    const errors = validateFields([
-      { name: "name", value: name, required: true },
-      { name: "price", value: price, required: true },
-      { name: "description", value: description, required: true },
-      { name: "stock", value: stock, required: true },
-      { name: "sellerId", value: sellerId, required: true },
-      { name: "picture", value: picture, required: true },
-    ]);
+  const errors = validateFields([
+    { name: "name", value: name, type: "string", required: true },
+    { name: "price", value: price, type: "number", required: true },
+    { name: "description", value: description, type: "string", required: true },
+    { name: "stock", value: stock, type: "number", required: true },
+    { name: "sellerId", value: sellerId, type: "string", required: true },
+    { name: "picture", value: picture, type: "string", required: true },
+  ]);
 
     if (errors.length) {
       return sendResponse(res, {
