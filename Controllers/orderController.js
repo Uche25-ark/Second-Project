@@ -5,9 +5,7 @@ import { StatusCodes } from "../utils/statusCodes.js";
 import { validateFields } from "../utils/validator.js";
 
 
-// ============================
 // CHECKOUT / CREATE ORDER
-// ============================
 export const checkout = async (req, res) => {
   try {
     const consumerId = req.consumer._id;
@@ -48,14 +46,22 @@ export const checkout = async (req, res) => {
     cart.items = [];
     await cart.save();
 
-    const populatedOrder = await order.populate(
-      "items.productId",
-      "name price"
-    );
+  const formattedOrder = {
+  orderId: order._id.toString(), // ✅ ADD THIS
+  consumerId: order.consumerId.toString(),
+  items: order.items.map(item => ({
+    productId: item.productId.toString(),
+    quantity: item.quantity,
+    price: item.price * item.quantity,
+  })),
+  totalPrice: order.total,
+  status: order.status,
+};
 
     return sendResponse(res, {
       code: StatusCodes.CREATED,
-      data: populatedOrder,
+      message: "Order created successfully",
+      data: formattedOrder,
     });
 
   } catch (error) {
@@ -66,10 +72,7 @@ export const checkout = async (req, res) => {
   }
 };
 
-
-// ============================
 // GET ALL ORDERS
-// ============================
 export const getOrders = async (req, res) => {
   try {
     const orders = await Order.find()
@@ -86,10 +89,7 @@ export const getOrders = async (req, res) => {
   }
 };
 
-
-// ============================
 // GET SINGLE ORDER
-// ============================
 export const getOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
@@ -116,9 +116,6 @@ export const getOrder = async (req, res) => {
 };
 
 
-// ============================
-// UPDATE ORDER STATUS
-// ============================
 export const updateOrder = async (req, res) => {
   try {
     const { status } = req.body;
@@ -135,17 +132,45 @@ export const updateOrder = async (req, res) => {
       });
     }
 
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true, runValidators: true }
-    ).populate("items.productId", "name price");
+    // ✅ First find order
+    const order = await Order.findById(req.params.id);
 
     if (!order) {
-      return sendResponse(res, { code: StatusCodes.NOT_FOUND });
+      return sendResponse(res, {
+        code: StatusCodes.NOT_FOUND,
+        message: "Order not found",
+      });
     }
 
-    return sendResponse(res, { data: order });
+    // ✅ Authorization check (IMPORTANT 🔥)
+    if (req.consumer._id.toString() !== order.consumerId.toString()) {
+      return sendResponse(res, {
+        code: StatusCodes.FORBIDDEN,
+        message: "Access denied",
+      });
+    }
+
+    // ✅ Update status
+    order.status = status;
+    await order.save();
+
+    // ✅ Clean response
+    const formattedOrder = {
+      orderId: order._id.toString(),
+      consumerId: order.consumerId.toString(),
+      items: order.items.map(item => ({
+        productId: item.productId.toString(),
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      totalPrice: order.total,
+      status: order.status,
+    };
+
+    return sendResponse(res, {
+      message: "Order updated successfully",
+      data: formattedOrder,
+    });
 
   } catch (error) {
     return sendResponse(res, {
@@ -156,9 +181,7 @@ export const updateOrder = async (req, res) => {
 };
 
 
-// ============================
 // DELETE ORDER
-// ============================
 export const deleteOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);

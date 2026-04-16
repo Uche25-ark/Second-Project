@@ -12,7 +12,6 @@ class Routes {
   }
 
   registerRoutes() {
-    // this.app.use("/api/login", loginRoutes);
     this.app.use("/api/consumers", consumerRoutes);
     this.app.use("/api/sellers", sellerRoutes);
     this.app.use("/api/products", productRoutes);

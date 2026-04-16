@@ -38,7 +38,6 @@ const consumerSchema = new mongoose.Schema(
   },
   { 
     timestamps: true,
-    versionKey: false   // ❌ removes __v
   }
 );
 

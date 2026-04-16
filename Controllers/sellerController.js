@@ -10,7 +10,6 @@ const generateToken = (id) =>
 
 
 // CREATE SELLER
-// ============================
 export const createSeller = async (req, res) => {
   try {
     let { sellerName, email, password, storeAddress } = req.body;
@@ -53,7 +52,7 @@ export const createSeller = async (req, res) => {
     return sendResponse(res, {
       code: StatusCodes.CREATED,
       message: "Seller created successfully",
-      data: sellerData, // password removed
+      data: sellerData, 
     });
 
   } catch (error) {
@@ -65,9 +64,7 @@ export const createSeller = async (req, res) => {
   }
 };
 
-// ============================
 // LOGIN SELLER
-// ============================
 export const loginSeller = async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -88,7 +85,7 @@ export const loginSeller = async (req, res) => {
 
     email = email.toLowerCase().trim();
 
-    // 👇 include password only for comparison
+    //include password only for comparison
     const seller = await Seller.findOne({ email }).select("+password");
 
     if (!seller || !(await seller.comparePassword(password))) {
@@ -98,7 +95,7 @@ export const loginSeller = async (req, res) => {
       });
     }
 
-    // ✅ REMOVE PASSWORD
+    //REMOVE PASSWORD
     const sellerData = seller.toObject();
     delete sellerData.password;
 
@@ -120,7 +117,7 @@ export const loginSeller = async (req, res) => {
   }
 };
 
-// GET SELLER (OWN PROFILE)
+// GET SELLER
 export const getSeller = async (req, res) => {
   try {
     const seller = await Seller.findById(req.params.id);
@@ -154,7 +151,6 @@ export const getSeller = async (req, res) => {
   }
 };
 
-
 // GET ALL SELLERS
 export const getSellers = async (req, res) => {
   try {
@@ -175,10 +171,7 @@ export const getSellers = async (req, res) => {
   }
 };
 
-
-// ============================
 // UPDATE SELLER
-// ============================
 export const updateSeller = async (req, res) => {
   try {
     const { id } = req.params; // get seller ID from URL
@@ -272,9 +265,7 @@ export const updateSeller = async (req, res) => {
   }
 };
 
-// ============================
 // DELETE SELLER
-// ============================
 export const deleteSeller = async (req, res) => {
   try {
     const seller = await Seller.findById(req.params.id);

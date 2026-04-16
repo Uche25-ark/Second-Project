@@ -2,7 +2,7 @@ import { StatusCodes } from "./statusCodes.js";
 
 export const sendResponse = (res, options = {}) => {
   const {
-    code = StatusCodes.OK.code,
+    code = StatusCodes.OK,
     message = StatusCodes.getMessage(code),
     data = null,
     errors = null,

@@ -9,9 +9,7 @@ const generateToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
 
-// ============================
 // CREATE CONSUMER
-// ============================
 export const createConsumer = async (req, res) => {
   try {
     let { consumerName, email, password, phoneNumber, address } = req.body;
@@ -75,10 +73,7 @@ export const createConsumer = async (req, res) => {
   }
 };
 
-
-// ============================
 // LOGIN CONSUMER
-// ============================
 export const loginConsumer = async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -133,9 +128,7 @@ export const loginConsumer = async (req, res) => {
   }
 };
 
-// ============================
-// GET CONSUMER (OWN PROFILE)
-// ============================
+// GET CONSUMER
 export const getConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id).select("-password");
@@ -169,9 +162,7 @@ export const getConsumer = async (req, res) => {
   }
 };
 
-// ============================
 // GET ALL CONSUMERS
-// ============================
 export const getConsumers = async (req, res) => {
   try {
     const consumers = await Consumer.find().select("-password");
@@ -191,9 +182,7 @@ export const getConsumers = async (req, res) => {
   }
 };
 
-// ============================
 // UPDATE CONSUMER
-// ============================
 export const updateConsumer = async (req, res) => {
   try {
     const { id } = req.params; // Get consumer ID from URL
@@ -289,9 +278,7 @@ export const updateConsumer = async (req, res) => {
   }
 };
 
-// ============================
 // DELETE CONSUMER
-// ============================
 export const deleteConsumer = async (req, res) => {
   try {
     const consumer = await Consumer.findById(req.params.id);

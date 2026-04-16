@@ -4,9 +4,7 @@ import { StatusCodes } from "../utils/statusCodes.js";
 import { validateFields } from "../utils/validator.js";
 
 
-// ============================
 // CREATE PRODUCT
-// ============================
 export const createProduct = async (req, res) => {
   try {
     const { name, price, description, stock, sellerId, picture } = req.body;
@@ -50,10 +48,7 @@ export const createProduct = async (req, res) => {
   }
 };
 
-
-// ============================
 // GET ALL PRODUCTS
-// ============================
 export const getProducts = async (req, res) => {
   try {
     const products = await Product.find();
@@ -68,10 +63,7 @@ export const getProducts = async (req, res) => {
   }
 };
 
-
-// ============================
 // GET SINGLE PRODUCT
-// ============================
 export const getProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -90,10 +82,7 @@ export const getProduct = async (req, res) => {
   }
 };
 
-
-// ============================
 // UPDATE PRODUCT
-// ============================
 export const updateProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -136,10 +125,7 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-
-// ============================
 // DELETE PRODUCT
-// ============================
 export const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
