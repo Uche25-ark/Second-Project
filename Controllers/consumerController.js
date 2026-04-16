@@ -5,8 +5,17 @@ import { StatusCodes } from "../utils/statusCodes.js";
 import { validateFields } from "../utils/validator.js";
 
 // Generate JWT Token
-const generateToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+const generateToken = (consumer) =>
+  jwt.sign(
+    {
+      id: consumer._id,
+      email: consumer.email,
+      consumerName: consumer.consumerName,
+      role: "consumer",
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
 
 // CREATE CONSUMER
@@ -57,6 +66,7 @@ export const createConsumer = async (req, res) => {
     // ✅ Remove password before sending response
     const consumerData = consumer.toObject();
     delete consumerData.password;
+    delete consumerData.__v;
 
     return sendResponse(res, {
       code: StatusCodes.CREATED,
@@ -114,7 +124,7 @@ export const loginConsumer = async (req, res) => {
       message: "Login successful",
       data: {
         ...consumerData,
-        token: generateToken(consumer._id),
+        token: generateToken(consumer),
       },
     });
 
@@ -131,7 +141,7 @@ export const loginConsumer = async (req, res) => {
 // GET CONSUMER
 export const getConsumer = async (req, res) => {
   try {
-    const consumer = await Consumer.findById(req.params.id).select("-password");
+    const consumer = await Consumer.findById(req.params.id).select("-password -__v");
 
     if (!consumer) {
       return sendResponse(res, {
@@ -165,7 +175,7 @@ export const getConsumer = async (req, res) => {
 // GET ALL CONSUMERS
 export const getConsumers = async (req, res) => {
   try {
-    const consumers = await Consumer.find().select("-password");
+    const consumers = await Consumer.find().select("-password -__v");
 
     return sendResponse(res, {
       code: StatusCodes.OK,
@@ -262,6 +272,7 @@ export const updateConsumer = async (req, res) => {
     // Remove password before sending response
     const consumerData = consumer.toObject();
     delete consumerData.password;
+    delete consumerData.__v;
 
     return sendResponse(res, {
       code: StatusCodes.OK,

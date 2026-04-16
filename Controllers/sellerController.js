@@ -5,8 +5,17 @@ import { StatusCodes } from "../utils/statusCodes.js";
 import { validateFields } from "../utils/validator.js";
 
 // Generate JWT Token
-const generateToken = (id) =>
-  jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+const generateToken = (seller) =>
+  jwt.sign(
+    {
+      id: seller._id,
+      email: seller.email,
+      sellerName: seller.sellerName,
+      role: "seller",
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
 
 // CREATE SELLER
@@ -48,6 +57,7 @@ export const createSeller = async (req, res) => {
     // ✅ Remove password from response
     const sellerData = seller.toObject();
     delete sellerData.password;
+    delete sellerData.__v;
 
     return sendResponse(res, {
       code: StatusCodes.CREATED,
@@ -98,13 +108,14 @@ export const loginSeller = async (req, res) => {
     //REMOVE PASSWORD
     const sellerData = seller.toObject();
     delete sellerData.password;
+    delete sellerData.__v;
 
     return sendResponse(res, {
       code: StatusCodes.OK,
       message: "Login successful",
       data: {
         ...sellerData,
-        token: generateToken(seller._id),
+        token: generateToken(seller),
       },
     });
 
@@ -120,7 +131,7 @@ export const loginSeller = async (req, res) => {
 // GET SELLER
 export const getSeller = async (req, res) => {
   try {
-    const seller = await Seller.findById(req.params.id);
+    const seller = await Seller.findById(req.params.id).select("-password -__v");
 
     if (!seller) {
       return sendResponse(res, {
@@ -154,7 +165,7 @@ export const getSeller = async (req, res) => {
 // GET ALL SELLERS
 export const getSellers = async (req, res) => {
   try {
-    const sellers = await Seller.find();
+    const sellers = await Seller.find().select("-password -__v");
 
     return sendResponse(res, {
       code: StatusCodes.OK,
@@ -249,6 +260,7 @@ export const updateSeller = async (req, res) => {
     // Remove password before sending response
     const sellerData = seller.toObject();
     delete sellerData.password;
+    delete sellerData.__v;
 
     return sendResponse(res, {
       code: StatusCodes.OK,

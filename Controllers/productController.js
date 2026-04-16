@@ -35,9 +35,12 @@ export const createProduct = async (req, res) => {
       picture,
     });
 
+    const productData = product.toObject();
+    delete productData.__v;
+
     return sendResponse(res, {
       code: StatusCodes.CREATED,
-      data: product,
+      data: productData,
     });
 
   } catch (error) {
@@ -53,7 +56,13 @@ export const getProducts = async (req, res) => {
   try {
     const products = await Product.find();
 
-    return sendResponse(res, { data: products });
+    const productData = products.map((product) => {
+    const obj = product.toObject();
+    delete obj.__v;
+    return obj;
+    });
+
+    return sendResponse(res, { data: productData });
 
   } catch (error) {
     return sendResponse(res, {
@@ -72,7 +81,10 @@ export const getProduct = async (req, res) => {
       return sendResponse(res, { code: StatusCodes.NOT_FOUND });
     }
 
-    return sendResponse(res, { data: product });
+    const productData = product.toObject();
+    delete productData.__v;
+
+    return sendResponse(res, { data: productData });
 
   } catch (error) {
     return sendResponse(res, {
@@ -88,12 +100,18 @@ export const updateProduct = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (!product) {
-      return sendResponse(res, { code: StatusCodes.NOT_FOUND });
+      return sendResponse(res, {
+        code: StatusCodes.NOT_FOUND,
+        message: "Product not found",
+      });
     }
 
     // Ownership check
     if (req.seller?._id.toString() !== product.sellerId.toString()) {
-      return sendResponse(res, { code: StatusCodes.FORBIDDEN });
+      return sendResponse(res, {
+        code: StatusCodes.FORBIDDEN,
+        message: "Access denied",
+      });
     }
 
     const updates = req.body;
@@ -108,18 +126,42 @@ export const updateProduct = async (req, res) => {
       return sendResponse(res, {
         code: StatusCodes.UNPROCESSABLE_ENTITY,
         validation: true,
+        message: "Validation errors",
         errors,
       });
     }
 
-    Object.assign(product, updates);
+    // ✅ SAFE UPDATE (prevent overwriting everything)
+    const allowedFields = [
+      "name",
+      "price",
+      "description",
+      "stock",
+      "picture",
+    ];
+
+    allowedFields.forEach((field) => {
+      if (updates[field] !== undefined) {
+        product[field] = updates[field];
+      }
+    });
+
     await product.save();
 
-    return sendResponse(res, { data: product });
+    // ✅ CLEAN RESPONSE (remove __v)
+    const productData = product.toObject();
+    delete productData.__v;
+
+    return sendResponse(res, {
+      code: StatusCodes.OK,
+      message: "Product updated successfully",
+      data: productData,
+    });
 
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
+      message: "Failed to update product",
       errors: error.message,
     });
   }
