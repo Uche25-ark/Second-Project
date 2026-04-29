@@ -16,7 +16,7 @@ router.post("/signup", createConsumer);
 router.post("/signin", loginConsumer);
 
 // Protected routes
-router.get("/", protectConsumer, getConsumers);
+router.get("/", getConsumers);
 router.get("/:id", protectConsumer, getConsumer);
 router.put("/:id", protectConsumer, updateConsumer);
 router.delete("/:id", protectConsumer, deleteConsumer);

@@ -1,28 +1,57 @@
 import Product from "../models/Product.js";
+import cloudinary from "../config/cloudinary.js";
+import { extractPublicId } from "../utils/cloudinaryHelpers.js";
 import { sendResponse } from "../utils/apiResponse.js";
 import { StatusCodes } from "../utils/statusCodes.js";
-import { validateFields } from "../utils/validator.js";
+import { compressBase64Image } from "../utils/compressImage.js";
+
+const sellerPopulate = {
+  path: "sellerId",
+  select: "sellerName email storeAddress -_id",
+};
 
 
 // CREATE PRODUCT
 export const createProduct = async (req, res) => {
   try {
-    const { name, price, description, stock, sellerId, picture } = req.body;
+    const { name, price, description, stock, picture } = req.body;
 
-  const errors = validateFields([
-    { name: "name", value: name, type: "string", required: true },
-    { name: "price", value: price, type: "number", required: true },
-    { name: "description", value: description, type: "string", required: true },
-    { name: "stock", value: stock, type: "number", required: true },
-    { name: "sellerId", value: sellerId, type: "string", required: true },
-    { name: "picture", value: picture, type: "string", required: true },
-  ]);
-
-    if (errors.length) {
+    if (!req.seller) {
       return sendResponse(res, {
-        code: StatusCodes.UNPROCESSABLE_ENTITY,
-        validation: true,
-        errors,
+        code: StatusCodes.UNAUTHORIZED,
+        message: "Not authorized",
+      });
+    }
+
+    // 🔥 IMAGE VALIDATION
+    if (!picture || !picture.startsWith("data:image")) {
+      return sendResponse(res, {
+        code: StatusCodes.BAD_REQUEST,
+        message: "Invalid image format. Must be Base64 data URL",
+      });
+    }
+
+    let imageUrl = "";
+
+    try {
+      // 🔥 COMPRESS IMAGE FIRST
+      const compressedPicture = await compressBase64Image(picture);
+
+      // 🔥 UPLOAD TO CLOUDINARY
+      const uploaded = await cloudinary.uploader.upload(compressedPicture, {
+        folder: "products",
+        resource_type: "image",
+      });
+
+      imageUrl = uploaded.secure_url;
+
+    } catch (uploadError) {
+      console.log("🔥 CLOUDINARY ERROR:", uploadError);
+
+      return sendResponse(res, {
+        code: StatusCodes.BAD_REQUEST,
+        message: "Image upload failed",
+        errors: uploadError.message,
       });
     }
 
@@ -31,68 +60,97 @@ export const createProduct = async (req, res) => {
       price,
       description,
       stock,
-      sellerId,
-      picture,
+      picture: imageUrl,
+      sellerId: req.seller._id,
     });
 
-    const productData = product.toObject();
-    delete productData.__v;
+    const data = await Product.findById(product._id).populate(sellerPopulate);
 
     return sendResponse(res, {
       code: StatusCodes.CREATED,
-      data: productData,
+      message: "Product created successfully",
+      data,
     });
 
   } catch (error) {
+    console.log("🔥 CREATE PRODUCT ERROR:", error);
+
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
-      errors: error.message,
+      message: error.message,
+      errors: error.stack,
     });
   }
 };
 
-// GET ALL PRODUCTS
+
+
+// GET PRODUCTS
 export const getProducts = async (req, res) => {
   try {
-    const products = await Product.find();
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    const productData = products.map((product) => {
-    const obj = product.toObject();
-    delete obj.__v;
-    return obj;
+    const keyword = req.query.search
+      ? { name: { $regex: req.query.search, $options: "i" } }
+      : {};
+
+    let sort = { createdAt: -1 };
+
+    if (req.query.sort === "low") sort = { price: 1 };
+    if (req.query.sort === "high") sort = { price: -1 };
+
+    const total = await Product.countDocuments(keyword);
+
+    const products = await Product.find(keyword)
+      .populate(sellerPopulate)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    return sendResponse(res, {
+      code: StatusCodes.OK,
+      data: products,
+      page,
+      pages: Math.ceil(total / limit),
+      total,
     });
-
-    return sendResponse(res, { data: productData });
-
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
-      errors: error.message,
+      message: error.message,
     });
   }
 };
+
 
 // GET SINGLE PRODUCT
 export const getProduct = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate(
+      sellerPopulate
+    );
 
     if (!product) {
-      return sendResponse(res, { code: StatusCodes.NOT_FOUND });
+      return sendResponse(res, {
+        code: StatusCodes.NOT_FOUND,
+        message: "Product not found",
+      });
     }
 
-    const productData = product.toObject();
-    delete productData.__v;
-
-    return sendResponse(res, { data: productData });
-
+    return sendResponse(res, {
+      code: StatusCodes.OK,
+      data: product,
+    });
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
-      errors: error.message,
+      message: error.message,
     });
   }
 };
+
 
 // UPDATE PRODUCT
 export const updateProduct = async (req, res) => {
@@ -106,66 +164,66 @@ export const updateProduct = async (req, res) => {
       });
     }
 
-    // Ownership check
-    if (req.seller?._id.toString() !== product.sellerId.toString()) {
+    if (product.sellerId.toString() !== req.seller._id.toString()) {
       return sendResponse(res, {
         code: StatusCodes.FORBIDDEN,
         message: "Access denied",
       });
     }
 
-    const updates = req.body;
+    const { picture } = req.body;
 
-    // Optional validation
-    const errors = validateFields([
-      { name: "price", value: updates.price },
-      { name: "stock", value: updates.stock },
-    ]);
+    // 🔥 IMAGE UPDATE WITH COMPRESSION
+    if (picture && picture.startsWith("data:image")) {
+      try {
+        if (product.picture) {
+          await cloudinary.uploader.destroy(
+            extractPublicId(product.picture)
+          );
+        }
 
-    if (errors.length) {
-      return sendResponse(res, {
-        code: StatusCodes.UNPROCESSABLE_ENTITY,
-        validation: true,
-        message: "Validation errors",
-        errors,
-      });
+        const compressedPicture = await compressBase64Image(picture);
+
+        const uploaded = await cloudinary.uploader.upload(compressedPicture, {
+          folder: "products",
+          resource_type: "image",
+        });
+
+        product.picture = uploaded.secure_url;
+
+      } catch (uploadError) {
+        console.log("🔥 UPDATE IMAGE ERROR:", uploadError);
+
+        return sendResponse(res, {
+          code: StatusCodes.BAD_REQUEST,
+          message: "Image update failed",
+        });
+      }
     }
 
-    // ✅ SAFE UPDATE (prevent overwriting everything)
-    const allowedFields = [
-      "name",
-      "price",
-      "description",
-      "stock",
-      "picture",
-    ];
-
-    allowedFields.forEach((field) => {
-      if (updates[field] !== undefined) {
-        product[field] = updates[field];
-      }
-    });
+    product.name = req.body.name ?? product.name;
+    product.price = req.body.price ?? product.price;
+    product.description = req.body.description ?? product.description;
+    product.stock = req.body.stock ?? product.stock;
 
     await product.save();
 
-    // ✅ CLEAN RESPONSE (remove __v)
-    const productData = product.toObject();
-    delete productData.__v;
-
     return sendResponse(res, {
       code: StatusCodes.OK,
-      message: "Product updated successfully",
-      data: productData,
+      message: "Updated successfully",
+      data: product,
     });
 
   } catch (error) {
+    console.log("🔥 UPDATE PRODUCT ERROR:", error);
+
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
-      message: "Failed to update product",
-      errors: error.message,
+      message: error.message,
     });
   }
 };
+
 
 // DELETE PRODUCT
 export const deleteProduct = async (req, res) => {
@@ -173,24 +231,42 @@ export const deleteProduct = async (req, res) => {
     const product = await Product.findById(req.params.id);
 
     if (!product) {
-      return sendResponse(res, { code: StatusCodes.NOT_FOUND });
+      return sendResponse(res, {
+        code: StatusCodes.NOT_FOUND,
+        message: "Product not found",
+      });
     }
 
-    // Ownership check
-    if (req.seller?._id.toString() !== product.sellerId.toString()) {
-      return sendResponse(res, { code: StatusCodes.FORBIDDEN });
+    if (product.sellerId.toString() !== req.seller._id.toString()) {
+      return sendResponse(res, {
+        code: StatusCodes.FORBIDDEN,
+        message: "Access denied",
+      });
+    }
+
+    if (product.picture) {
+      try {
+        await cloudinary.uploader.destroy(
+          extractPublicId(product.picture)
+        );
+      } catch (err) {
+        console.log("🔥 DELETE IMAGE ERROR:", err);
+      }
     }
 
     await product.deleteOne();
 
     return sendResponse(res, {
-      message: "Product deleted successfully",
+      code: StatusCodes.OK,
+      message: "Deleted successfully",
     });
 
   } catch (error) {
+    console.log("🔥 DELETE PRODUCT ERROR:", error);
+
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
-      errors: error.message,
+      message: error.message,
     });
   }
 };

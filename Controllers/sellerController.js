@@ -1,4 +1,5 @@
 import Seller from "../models/Seller.js";
+import Product from "../models/Product.js";
 import jwt from "jsonwebtoken";
 import { sendResponse } from "../utils/apiResponse.js";
 import { StatusCodes } from "../utils/statusCodes.js";
@@ -23,7 +24,6 @@ export const createSeller = async (req, res) => {
   try {
     let { sellerName, email, password, storeAddress } = req.body;
 
-    // Validate input fields
     const errors = validateFields([
       { name: "sellerName", value: sellerName, type: "string", required: true },
       { name: "email", value: email, type: "string", required: true, pattern: /^\S+@\S+\.\S+$/ },
@@ -42,19 +42,27 @@ export const createSeller = async (req, res) => {
 
     email = email.toLowerCase().trim();
 
-    // Check for existing seller
-    const existing = await Seller.findOne({ $or: [{ email }, { sellerName }] });
+    const existing = await Seller.findOne({
+      $or: [{ email }, { sellerName }],
+    });
+
     if (existing) {
       return sendResponse(res, {
         code: StatusCodes.CONFLICT,
-        message: existing.email === email ? "Email already exists" : "Seller name already exists",
+        message:
+          existing.email === email
+            ? "Email already exists"
+            : "Seller name already exists",
       });
     }
 
-    // Create seller
-    const seller = await Seller.create({ sellerName, email, password, storeAddress });
+    const seller = await Seller.create({
+      sellerName,
+      email,
+      password,
+      storeAddress,
+    });
 
-    // ✅ Remove password from response
     const sellerData = seller.toObject();
     delete sellerData.password;
     delete sellerData.__v;
@@ -62,9 +70,8 @@ export const createSeller = async (req, res) => {
     return sendResponse(res, {
       code: StatusCodes.CREATED,
       message: "Seller created successfully",
-      data: sellerData, 
+      data: sellerData,
     });
-
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -73,6 +80,7 @@ export const createSeller = async (req, res) => {
     });
   }
 };
+
 
 // LOGIN SELLER
 export const loginSeller = async (req, res) => {
@@ -95,7 +103,6 @@ export const loginSeller = async (req, res) => {
 
     email = email.toLowerCase().trim();
 
-    //include password only for comparison
     const seller = await Seller.findOne({ email }).select("+password");
 
     if (!seller || !(await seller.comparePassword(password))) {
@@ -105,7 +112,6 @@ export const loginSeller = async (req, res) => {
       });
     }
 
-    //REMOVE PASSWORD
     const sellerData = seller.toObject();
     delete sellerData.password;
     delete sellerData.__v;
@@ -118,7 +124,6 @@ export const loginSeller = async (req, res) => {
         token: generateToken(seller),
       },
     });
-
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -128,7 +133,8 @@ export const loginSeller = async (req, res) => {
   }
 };
 
-// GET SELLER
+
+// GET SINGLE SELLER
 export const getSeller = async (req, res) => {
   try {
     const seller = await Seller.findById(req.params.id).select("-password -__v");
@@ -140,7 +146,7 @@ export const getSeller = async (req, res) => {
       });
     }
 
-    if (req.seller._id.toString() !== seller._id.toString()) {
+    if (!req.seller || req.seller._id.toString() !== seller._id.toString()) {
       return sendResponse(res, {
         code: StatusCodes.FORBIDDEN,
         message: "Access denied",
@@ -152,7 +158,6 @@ export const getSeller = async (req, res) => {
       message: "Seller retrieved successfully",
       data: seller,
     });
-
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -161,6 +166,7 @@ export const getSeller = async (req, res) => {
     });
   }
 };
+
 
 // GET ALL SELLERS
 export const getSellers = async (req, res) => {
@@ -172,7 +178,6 @@ export const getSellers = async (req, res) => {
       message: "Sellers retrieved successfully",
       data: sellers,
     });
-
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -182,10 +187,12 @@ export const getSellers = async (req, res) => {
   }
 };
 
+
 // UPDATE SELLER
 export const updateSeller = async (req, res) => {
   try {
-    const { id } = req.params; // get seller ID from URL
+    const { id } = req.params;
+
     if (!id) {
       return sendResponse(res, {
         code: StatusCodes.BAD_REQUEST,
@@ -193,7 +200,6 @@ export const updateSeller = async (req, res) => {
       });
     }
 
-    // Ensure the logged-in seller is attached by middleware
     if (!req.seller) {
       return sendResponse(res, {
         code: StatusCodes.UNAUTHORIZED,
@@ -201,8 +207,8 @@ export const updateSeller = async (req, res) => {
       });
     }
 
-    // Fetch seller including password (if updating)
     const seller = await Seller.findById(id).select("+password");
+
     if (!seller) {
       return sendResponse(res, {
         code: StatusCodes.NOT_FOUND,
@@ -210,7 +216,6 @@ export const updateSeller = async (req, res) => {
       });
     }
 
-    // Only allow logged-in seller to update their own info
     if (req.seller._id.toString() !== seller._id.toString()) {
       return sendResponse(res, {
         code: StatusCodes.FORBIDDEN,
@@ -220,7 +225,6 @@ export const updateSeller = async (req, res) => {
 
     const updates = req.body;
 
-    // Validate fields if present
     const errors = validateFields([
       { name: "email", value: updates.email, pattern: /^\S+@\S+\.\S+$/ },
       { name: "password", value: updates.password, minLength: 6 },
@@ -235,29 +239,32 @@ export const updateSeller = async (req, res) => {
       });
     }
 
-    // Check email uniqueness
+    // Email update
     if (updates.email) {
+      const newEmail = updates.email.toLowerCase().trim();
+
       const exists = await Seller.findOne({
-        email: updates.email.toLowerCase().trim(),
+        email: newEmail,
         _id: { $ne: seller._id },
       });
+
       if (exists) {
         return sendResponse(res, {
           code: StatusCodes.CONFLICT,
           message: "Email already exists",
         });
       }
-      seller.email = updates.email.toLowerCase().trim();
+
+      seller.email = newEmail;
     }
 
-    // Update only provided fields
+    // Safe updates
     if (updates.sellerName) seller.sellerName = updates.sellerName;
     if (updates.password) seller.password = updates.password;
     if (updates.storeAddress) seller.storeAddress = updates.storeAddress;
 
     await seller.save();
 
-    // Remove password before sending response
     const sellerData = seller.toObject();
     delete sellerData.password;
     delete sellerData.__v;
@@ -267,7 +274,6 @@ export const updateSeller = async (req, res) => {
       message: "Seller updated successfully",
       data: sellerData,
     });
-
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -277,7 +283,8 @@ export const updateSeller = async (req, res) => {
   }
 };
 
-// DELETE SELLER
+
+// DELETE SELLER (FINAL VERSION WITH PRODUCT CHECK)
 export const deleteSeller = async (req, res) => {
   try {
     const seller = await Seller.findById(req.params.id);
@@ -289,10 +296,21 @@ export const deleteSeller = async (req, res) => {
       });
     }
 
-    if (req.seller._id.toString() !== seller._id.toString()) {
+    if (!req.seller || req.seller._id.toString() !== seller._id.toString()) {
       return sendResponse(res, {
         code: StatusCodes.FORBIDDEN,
         message: "Access denied",
+      });
+    }
+
+    // Block deletion if products exist
+    const productExists = await Product.exists({ sellerId: seller._id });
+
+    if (productExists) {
+      return sendResponse(res, {
+        code: StatusCodes.BAD_REQUEST,
+        message:
+          "Cannot delete seller with existing products. Delete products first.",
       });
     }
 
@@ -302,7 +320,6 @@ export const deleteSeller = async (req, res) => {
       code: StatusCodes.OK,
       message: "Seller deleted successfully",
     });
-
   } catch (error) {
     return sendResponse(res, {
       code: StatusCodes.INTERNAL_SERVER_ERROR,

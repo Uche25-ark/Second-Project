@@ -16,7 +16,7 @@ router.post("/signup", createSeller);
 router.post("/signin", loginSeller);
 
 // Protected routes
-router.get("/", protectSeller, getSellers);
+router.get("/", getSellers);
 router.get("/:id", protectSeller, getSeller);
 router.put("/:id", protectSeller, updateSeller);
 router.delete("/:id", protectSeller, deleteSeller);

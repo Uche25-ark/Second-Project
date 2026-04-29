@@ -63,7 +63,7 @@ export const createConsumer = async (req, res) => {
       address,
     });
 
-    // ✅ Remove password before sending response
+    // Remove password before sending response
     const consumerData = consumer.toObject();
     delete consumerData.password;
     delete consumerData.__v;
@@ -118,6 +118,7 @@ export const loginConsumer = async (req, res) => {
     //Remove password from response
     const consumerData = consumer.toObject();
     delete consumerData.password;
+    delete consumerData.__v;
 
     return sendResponse(res, {
       code: StatusCodes.OK,
