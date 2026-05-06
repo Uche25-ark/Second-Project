@@ -28,19 +28,19 @@ const productSchema = new mongoose.Schema(
       default: 0,
     },
 
-    picture: {
-      type: String,
-      default: "",
-      validate: {
-        validator: function (v) {
-          return (
-            v === "" ||
-            /^https?:\/\/.+\.(jpg|jpeg|png|webp|gif)$/.test(v)
-          );
-        },
-        message: (props) => `${props.value} is not a valid image URL!`,
-      },
+   picture: {
+  type: String,
+  default: "",
+  validate: {
+    validator: function (v) {
+      return (
+        v === "" ||
+        /^data:image\/(png|jpeg|jpg|webp|gif);base64,/.test(v)
+      );
     },
+    message: () => `Picture must be a valid Base64 image`,
+    },
+  },
 
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
